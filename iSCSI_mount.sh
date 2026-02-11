@@ -107,9 +107,20 @@ echo
 echo -e "${GREEN}=== Phase 1: iSCSI Connection Setup ===${NC}"
 echo -e "${BLUE}Configuring iSCSI node for target: $TARGET_IQN at portal $PORTAL_IP${NC}"
 
-# Discover the target (helps create the node record if missing)
-echo -e "${YELLOW}Discovering target...${NC}"
-iscsiadm -m discovery -t sendtargets -p "$PORTAL_IP" || true
+# Discover the target with CHAP (helps create the node record if missing)
+echo -e "${YELLOW}Discovering target (CHAP)...${NC}"
+
+# Configure discovery DB entry for the portal and set CHAP for discovery
+iscsiadm -m discoverydb -t sendtargets -p "$PORTAL_IP" --op=new || true
+iscsiadm -m discoverydb -t sendtargets -p "$PORTAL_IP" \
+    --op=update --name discovery.sendtargets.auth.authmethod --value=CHAP
+iscsiadm -m discoverydb -t sendtargets -p "$PORTAL_IP" \
+    --op=update --name discovery.sendtargets.auth.username --value="$CHAP_USER"
+iscsiadm -m discoverydb -t sendtargets -p "$PORTAL_IP" \
+    --op=update --name discovery.sendtargets.auth.password --value="$CHAP_PASS"
+
+# Run discovery using the CHAP-enabled discovery DB entry
+iscsiadm -m discoverydb -t sendtargets -p "$PORTAL_IP" --discover || true
 
 # Set CHAP auth method, username, and password
 echo -e "${YELLOW}Configuring CHAP authentication...${NC}"
